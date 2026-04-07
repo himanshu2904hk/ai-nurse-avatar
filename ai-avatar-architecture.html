@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Avatar Assistant — Patient Pre-Assessment Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #111827;
+    --bg-card: #161d2e;
+    --border-subtle: rgba(255,255,255,0.06);
+    --border-glow: rgba(255,255,255,0.12);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --user-color: #22c55e;
+    --user-bg: rgba(34,197,94,0.08);
+    --daily-color: #3b82f6;
+    --daily-bg: rgba(59,130,246,0.08);
+    --tavus-color: #a855f7;
+    --tavus-bg: rgba(168,85,247,0.08);
+    --ngrok-color: #f97316;
+    --ngrok-bg: rgba(249,115,22,0.08);
+    --fastapi-color: #eab308;
+    --fastapi-bg: rgba(234,179,8,0.08);
+    --db-color: #06b6d4;
+    --db-bg: rgba(6,182,212,0.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg-primary); color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background: radial-gradient(ellipse 600px 400px at 20% 20%, rgba(59,130,246,0.03), transparent),
+                radial-gradient(ellipse 500px 500px at 80% 60%, rgba(168,85,247,0.02), transparent);
+    z-index:0; pointer-events:none;
+  }
+  .page-wrapper { position:relative; z-index:1; max-width:1440px; margin:0 auto; padding:40px 32px 60px; }
+
+  .header { text-align:center; margin-bottom:48px; }
+  .header-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.2);
+    padding:6px 16px; border-radius:100px; font-size:12px; font-weight:600;
+    color:#c084fc; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:20px;
+  }
+  .header-badge::before {
+    content:''; width:6px; height:6px; background:#a855f7; border-radius:50%;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(1.4);} }
+  .header h1 {
+    font-size:40px; font-weight:800; letter-spacing:-1px;
+    background:linear-gradient(135deg,#f1f5f9,#94a3b8);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:10px;
+  }
+  .header p { font-size:16px; color:var(--text-secondary); }
+
+  .architecture-container {
+    background:var(--bg-secondary); border:1px solid var(--border-subtle);
+    border-radius:20px; padding:40px 32px; margin-bottom:40px;
+    position:relative; overflow:hidden;
+  }
+  .architecture-container::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(180deg,rgba(255,255,255,0.015) 0%,transparent 40%);
+    pointer-events:none; border-radius:20px;
+  }
+  .diagram-svg { width:100%; height:auto; }
+
+  .flow-line { stroke-dasharray:6 4; animation:dash 2s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset:-20; } }
+  .step-circle { font-family:'JetBrains Mono',monospace; font-weight:700; font-size:10px; }
+  .node-group { cursor:pointer; }
+  .node-group:hover .node-box { stroke-width:2.5; }
+
+  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
+  @media (max-width:900px) { .info-grid { grid-template-columns:1fr; } }
+  .info-card,.info-card-full {
+    background:var(--bg-secondary); border:1px solid var(--border-subtle);
+    border-radius:16px; padding:28px; position:relative; overflow:hidden;
+  }
+  .info-card-full { margin-bottom:24px; }
+  .info-card::before,.info-card-full::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg,transparent,var(--border-glow),transparent);
+  }
+  .info-card h3,.info-card-full h3 {
+    font-size:14px; font-weight:700; color:var(--text-primary);
+    margin-bottom:20px; display:flex; align-items:center; gap:10px;
+    text-transform:uppercase; letter-spacing:1px;
+  }
+  .info-card h3 .icon {
+    width:28px; height:28px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  .info-table { width:100%; border-collapse:collapse; }
+  .info-table th {
+    text-align:left; font-size:11px; font-weight:600; color:var(--text-muted);
+    text-transform:uppercase; letter-spacing:1px; padding:0 0 12px 0;
+    border-bottom:1px solid var(--border-subtle);
+  }
+  .info-table td {
+    padding:10px 0; font-size:13px; color:var(--text-secondary);
+    border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:top;
+  }
+  .info-table tr:last-child td { border-bottom:none; }
+  .info-table .step-num {
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:11px;
+    width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;
+    border-radius:6px; background:rgba(168,85,247,0.12); color:#c084fc;
+  }
+  .tech-badge {
+    display:inline-block; padding:3px 10px; border-radius:6px;
+    font-size:11px; font-weight:600; font-family:'JetBrains Mono',monospace;
+    background:rgba(255,255,255,0.05); color:var(--text-secondary);
+    border:1px solid rgba(255,255,255,0.06);
+  }
+  .file-name { font-family:'JetBrains Mono',monospace; font-size:12px; color:#e2e8f0; }
+
+  .detail-panel {
+    position:fixed; bottom:24px; right:24px; width:380px;
+    background:var(--bg-card); border:1px solid var(--border-glow);
+    border-radius:16px; padding:24px;
+    transform:translateY(120%); transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    z-index:100; box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .detail-panel.visible { transform:translateY(0); }
+  .detail-panel .dp-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .detail-panel .dp-title { font-size:16px; font-weight:700; }
+  .detail-panel .dp-close {
+    width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; background:rgba(255,255,255,0.06); border:none;
+    color:var(--text-muted); cursor:pointer; font-size:16px; transition:background 0.2s;
+  }
+  .detail-panel .dp-close:hover { background:rgba(255,255,255,0.12); color:var(--text-primary); }
+  .detail-panel .dp-desc { font-size:13px; line-height:1.7; color:var(--text-secondary); margin-bottom:16px; }
+  .detail-panel .dp-tech {
+    font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--text-muted);
+    padding:10px 14px; background:rgba(0,0,0,0.3); border-radius:8px;
+    line-height:1.6; white-space:pre-line;
+  }
+  .footer { text-align:center; padding-top:20px; color:var(--text-muted); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+  <div class="header">
+    <div class="header-badge">Production Pipeline</div>
+    <h1>AI Avatar Assistant</h1>
+    <p>Patient Pre-Assessment System — Architecture & Data Flow</p>
+  </div>
+
+  <div class="architecture-container">
+
+    <!--
+      FULL-WIDTH LAYOUT — using entire 1280px viewBox
+      ================================================
+      
+      CLIENT ROW (y: 60–175):
+        Patient:    x: 60–260     center: 160
+        Daily SDK:  x: 420–620    center: 520
+        Frontend:   x: 780–980    center: 880
+
+      CLOUD ROW (y: 310–435):
+        Tavus:      x: 100–450    center: 275
+        ngrok:      x: 640–860    center: 750
+        HIPAA:      x: 980–1200   center: 1090
+
+      SERVER ROW (y: 540–680):
+        FastAPI:    x: 200–560    center: 380
+        PostgreSQL: x: 700–960    center: 830
+
+      Title "System Architecture" is centered at x=640
+    -->
+
+    <svg class="diagram-svg" viewBox="0 0 1280 680" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#22c55e" stroke-width="1.2"/></marker>
+        <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#3b82f6" stroke-width="1.2"/></marker>
+        <marker id="arr-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#a855f7" stroke-width="1.2"/></marker>
+        <marker id="arr-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#f97316" stroke-width="1.2"/></marker>
+        <marker id="arr-yellow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#eab308" stroke-width="1.2"/></marker>
+        <marker id="arr-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="none" stroke="#06b6d4" stroke-width="1.2"/></marker>
+      </defs>
+
+      <!-- CENTERED TITLE -->
+      <text x="640" y="30" text-anchor="middle" fill="#475569" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" letter-spacing="3" text-transform="uppercase">SYSTEM ARCHITECTURE</text>
+
+      <!-- LAYER LABELS (rotated on left) -->
+      <text x="28" y="140" fill="#334155" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" transform="rotate(-90, 28, 140)">CLIENT</text>
+      <text x="28" y="390" fill="#334155" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" transform="rotate(-90, 28, 390)">CLOUD</text>
+      <text x="28" y="590" fill="#334155" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" letter-spacing="1.5" transform="rotate(-90, 28, 590)">SERVER</text>
+
+      <!-- Layer separator lines (full width) -->
+      <line x1="50" y1="255" x2="1260" y2="255" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="4 6"/>
+      <line x1="50" y1="460" x2="1260" y2="460" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="4 6"/>
+
+
+      <!-- ====================================== -->
+      <!--            CLIENT ROW NODES            -->
+      <!-- ====================================== -->
+
+      <!-- PATIENT  center: 160  -->
+      <g class="node-group" data-component="user">
+        <rect class="node-box" x="60" y="65" width="200" height="115" rx="14" fill="var(--user-bg)" stroke="var(--user-color)" stroke-width="1.5"/>
+        <text x="160" y="102" text-anchor="middle" fill="var(--user-color)" font-size="28">👤</text>
+        <text x="160" y="128" text-anchor="middle" fill="var(--text-primary)" font-family="Plus Jakarta Sans" font-size="15" font-weight="700">Patient</text>
+        <text x="160" y="147" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">Browser · Microphone</text>
+        <text x="160" y="164" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">Voice Input / AV Output</text>
+      </g>
+
+      <!-- DAILY SDK  center: 520 -->
+      <g class="node-group" data-component="daily">
+        <rect class="node-box" x="420" y="65" width="200" height="115" rx="14" fill="var(--daily-bg)" stroke="var(--daily-color)" stroke-width="1.5"/>
+        <text x="520" y="102" text-anchor="middle" fill="var(--daily-color)" font-size="28">📡</text>
+        <text x="520" y="128" text-anchor="middle" fill="var(--text-primary)" font-family="Plus Jakarta Sans" font-size="15" font-weight="700">Daily SDK</text>
+        <text x="520" y="147" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">WebRTC Transport</text>
+        <text x="520" y="164" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">Audio/Video Stream</text>
+      </g>
+
+      <!-- FRONTEND  center: 880 -->
+      <g class="node-group" data-component="frontend">
+        <rect class="node-box" x="780" y="65" width="200" height="115" rx="14" fill="var(--daily-bg)" stroke="var(--daily-color)" stroke-width="1.5"/>
+        <text x="880" y="102" text-anchor="middle" fill="var(--daily-color)" font-size="28">🖥️</text>
+        <text x="880" y="128" text-anchor="middle" fill="var(--text-primary)" font-family="Plus Jakarta Sans" font-size="15" font-weight="700">Frontend</text>
+        <text x="880" y="147" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">assistant.js</text>
+        <text x="880" y="164" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">Event Handler · API Calls</text>
+      </g>
+
+
+      <!-- ====================================== -->
+      <!--            CLOUD ROW NODES             -->
+      <!-- ====================================== -->
+
+      <!-- TAVUS  center: 275  x: 100–450 -->
+      <g class="node-group" data-component="tavus">
+        <rect class="node-box" x="100" y="310" width="350" height="125" rx="14" fill="var(--tavus-bg)" stroke="var(--tavus-color)" stroke-width="1.5"/>
+        <text x="275" y="348" text-anchor="middle" fill="var(--tavus-color)" font-size="28">🤖</text>
+        <text x="275" y="375" text-anchor="middle" fill="var(--text-primary)" font-family="Plus Jakarta Sans" font-size="15" font-weight="700">Tavus AI Avatar</text>
+        <text x="275" y="395" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">STT → Persona LLM → TTS</text>
+        <text x="275" y="412" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">Lip-sync Video · tool_call Events</text>
+      </g>
+
+      <!-- NGROK  center: 750  x: 640–860 -->
+      <g class="node-group" data-component="ngrok">
+        <rect class="node-box" x="640" y="325" width="220" height="100" rx="14" fill="var(--ngrok-bg)" stroke="var(--ngrok-color)" stroke-width="1.5"/>
+        <text x="750" y="360" text-anchor="middle" fill="var(--ngrok-color)" font-size="28">🔒</text>
+        <text x="750" y="386" text-anchor="middle" fill="var(--text-primary)" font-family="Plus Jakarta Sans" font-size="15" font-weight="700">ngrok</text>
+        <text x="750" y="406" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">HTTPS Tunnel → localhost</text>
+      </g>
+
+      <!-- HIPAA BADGE  x: 980–1200 -->
+      <g class="node-group" data-component="hipaa">
+        <rect x="990" y="330" width="200" height="90" rx="14" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="1.2"/>
+        <text x="1090" y="360" text-anchor="middle" fill="#22c55e" font-size="22">🛡️</text>
+        <text x="1090" y="382" text-anchor="middle" fill="#22c55e" font-family="Plus Jakarta Sans" font-size="12" font-weight="700">HIPAA Compliant</text>
+        <text x="1090" y="398" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="9.5">All data on-premise</text>
+        <text x="1090" y="412" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="9.5">Local processing only</text>
+      </g>
+
+
+      <!-- ====================================== -->
+      <!--           SERVER ROW NODES             -->
+      <!-- ====================================== -->
+
+      <!-- FASTAPI  center: 380  x: 200–560 -->
+      <g class="node-group" data-component="fastapi">
+        <rect class="node-box" x="200" y="510" width="360" height="145" rx="14" fill="var(--fastapi-bg)" stroke="var(--fastapi-color)" stroke-width="1.5"/>
+        <text x="380" y="545" text-anchor="middle" fill="var(--fastapi-color)" font-size="28">⚡</text>
+        <text x="380" y="571" text-anchor="middle" fill="var(--text-primary)" font-family="Plus Jakarta Sans" font-size="15" font-weight="700">FastAPI Backend</text>
+        <text x="380" y="591" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">avatar.py · assistant_service.py</text>
+        <text x="380" y="608" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">Patient ID · Data Extraction · CRUD</text>
+        <text x="380" y="625" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">Response Builder</text>
+        <text x="380" y="645" text-anchor="middle" fill="var(--fastapi-color)" font-family="JetBrains Mono, monospace" font-size="9.5" font-weight="600">localhost:8000</text>
+      </g>
+
+      <!-- POSTGRESQL  center: 830  x: 700–960 -->
+      <g class="node-group" data-component="database">
+        <rect class="node-box" x="700" y="520" width="260" height="130" rx="14" fill="var(--db-bg)" stroke="var(--db-color)" stroke-width="1.5"/>
+        <text x="830" y="555" text-anchor="middle" fill="var(--db-color)" font-size="28">🗄️</text>
+        <text x="830" y="581" text-anchor="middle" fill="var(--text-primary)" font-family="Plus Jakarta Sans" font-size="15" font-weight="700">PostgreSQL</text>
+        <text x="830" y="601" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">patient_preassessment</text>
+        <text x="830" y="618" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10">patients table · psycopg2</text>
+        <text x="830" y="640" text-anchor="middle" fill="var(--db-color)" font-family="JetBrains Mono, monospace" font-size="9.5" font-weight="600">localhost:5432</text>
+      </g>
+
+
+      <!-- CONNECTIONS (all labels non-overlapping, numbers beside lines) -->
+
+      <!-- Step 1: Patient -> Daily SDK [Audio] horizontal y=122 -->
+      <line class="flow-line" x1="260" y1="122" x2="415" y2="122" stroke="var(--user-color)" stroke-width="1.8" marker-end="url(#arr-green)"/>
+      <rect x="310" y="100" width="55" height="18" rx="9" fill="rgba(34,197,94,0.15)"/>
+      <text x="338" y="112" text-anchor="middle" fill="var(--user-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">Audio</text>
+      <circle cx="275" cy="100" r="11" fill="rgba(34,197,94,0.25)" stroke="var(--user-color)" stroke-width="1"/>
+      <text class="step-circle" x="275" y="104" text-anchor="middle" fill="var(--user-color)">1</text>
+
+      <!-- Step 2: Daily SDK -> Tavus [WebRTC] down x=480, LEFT at y=262, down to Tavus -->
+      <path class="flow-line" d="M 480 180 L 480 262 L 210 262 L 210 310" stroke="var(--daily-color)" stroke-width="1.8" fill="none" marker-end="url(#arr-blue)"/>
+      <rect x="260" y="244" width="66" height="18" rx="9" fill="rgba(59,130,246,0.15)"/>
+      <text x="293" y="256" text-anchor="middle" fill="var(--daily-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">WebRTC</text>
+      <circle cx="497" cy="210" r="11" fill="rgba(59,130,246,0.25)" stroke="var(--daily-color)" stroke-width="1"/>
+      <text class="step-circle" x="497" y="214" text-anchor="middle" fill="var(--daily-color)">2</text>
+
+      <!-- Step 3: Tavus -> Daily SDK [tool_call]
+           Path: up from Tavus x=400 to y=295, right to x=560, up to Daily y=180
+           Label placed ABOVE the horizontal segment (label y=278, line y=295) with clear gap -->
+      <path class="flow-line" d="M 400 310 L 400 295 L 560 295 L 560 180" stroke="var(--tavus-color)" stroke-width="1.8" fill="none" marker-end="url(#arr-purple)"/>
+      <rect x="432" y="275" width="72" height="18" rx="9" fill="rgba(168,85,247,0.15)"/>
+      <text x="468" y="287" text-anchor="middle" fill="var(--tavus-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">tool_call</text>
+      <circle cx="543" cy="210" r="11" fill="rgba(168,85,247,0.25)" stroke="var(--tavus-color)" stroke-width="1"/>
+      <text class="step-circle" x="543" y="214" text-anchor="middle" fill="var(--tavus-color)">3</text>
+
+      <!-- Step 4: Daily SDK -> Frontend [Event] horizontal y=110 -->
+      <line class="flow-line" x1="620" y1="110" x2="775" y2="110" stroke="var(--daily-color)" stroke-width="1.8" marker-end="url(#arr-blue)"/>
+      <rect x="668" y="88" width="55" height="18" rx="9" fill="rgba(59,130,246,0.15)"/>
+      <text x="696" y="100" text-anchor="middle" fill="var(--daily-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">Event</text>
+      <circle cx="640" cy="88" r="11" fill="rgba(59,130,246,0.25)" stroke="var(--daily-color)" stroke-width="1"/>
+      <text class="step-circle" x="640" y="92" text-anchor="middle" fill="var(--daily-color)">4</text>
+
+      <!-- Step 5: Frontend -> ngrok [HTTP POST] label to RIGHT side -->
+      <path class="flow-line" d="M 850 180 L 850 250 L 750 250 L 750 320" stroke="var(--ngrok-color)" stroke-width="1.8" fill="none" marker-end="url(#arr-orange)"/>
+      <rect x="860" y="228" width="82" height="18" rx="9" fill="rgba(249,115,22,0.15)"/>
+      <text x="901" y="240" text-anchor="middle" fill="var(--ngrok-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">HTTP POST</text>
+      <circle cx="868" cy="205" r="11" fill="rgba(249,115,22,0.25)" stroke="var(--ngrok-color)" stroke-width="1"/>
+      <text class="step-circle" x="868" y="209" text-anchor="middle" fill="var(--ngrok-color)">5</text>
+
+      <!-- Step 6: ngrok -> FastAPI [Tunnel] label ABOVE line -->
+      <path class="flow-line" d="M 710 425 L 710 448 L 450 448 L 450 510" stroke="var(--fastapi-color)" stroke-width="1.8" fill="none" marker-end="url(#arr-yellow)"/>
+      <rect x="510" y="428" width="110" height="18" rx="9" fill="rgba(234,179,8,0.15)"/>
+      <text x="565" y="440" text-anchor="middle" fill="var(--fastapi-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">Tunnel to :8000</text>
+      <circle cx="727" cy="436" r="11" fill="rgba(234,179,8,0.25)" stroke="var(--fastapi-color)" stroke-width="1"/>
+      <text class="step-circle" x="727" y="440" text-anchor="middle" fill="var(--fastapi-color)">6</text>
+
+      <!-- Step 7: FastAPI -> PostgreSQL [SQL] y=565 -->
+      <line class="flow-line" x1="560" y1="565" x2="695" y2="565" stroke="var(--db-color)" stroke-width="1.8" marker-end="url(#arr-cyan)"/>
+      <rect x="598" y="547" width="42" height="18" rx="9" fill="rgba(6,182,212,0.15)"/>
+      <text x="619" y="559" text-anchor="middle" fill="var(--db-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">SQL</text>
+      <circle cx="580" cy="547" r="11" fill="rgba(6,182,212,0.25)" stroke="var(--db-color)" stroke-width="1"/>
+      <text class="step-circle" x="580" y="551" text-anchor="middle" fill="var(--db-color)">7</text>
+
+      <!-- Step 8: PostgreSQL -> FastAPI [Data] y=610 -->
+      <line class="flow-line" x1="695" y1="610" x2="565" y2="610" stroke="var(--db-color)" stroke-width="1.8" marker-end="url(#arr-cyan)"/>
+      <rect x="605" y="616" width="48" height="18" rx="9" fill="rgba(6,182,212,0.15)"/>
+      <text x="629" y="628" text-anchor="middle" fill="var(--db-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">Data</text>
+      <circle cx="675" cy="628" r="11" fill="rgba(6,182,212,0.25)" stroke="var(--db-color)" stroke-width="1"/>
+      <text class="step-circle" x="675" y="632" text-anchor="middle" fill="var(--db-color)">8</text>
+
+      <!-- Step 9: FastAPI -> ngrok [JSON Response] label BELOW line -->
+      <path class="flow-line" d="M 310 510 L 310 480 L 790 480 L 790 425" stroke="var(--fastapi-color)" stroke-width="1.8" fill="none" marker-end="url(#arr-yellow)"/>
+      <rect x="490" y="484" width="105" height="18" rx="9" fill="rgba(234,179,8,0.15)"/>
+      <text x="543" y="496" text-anchor="middle" fill="var(--fastapi-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">JSON Response</text>
+      <circle cx="293" cy="495" r="11" fill="rgba(234,179,8,0.25)" stroke="var(--fastapi-color)" stroke-width="1"/>
+      <text class="step-circle" x="293" y="499" text-anchor="middle" fill="var(--fastapi-color)">9</text>
+
+      <!-- Step 10 (NEW): ngrok -> Frontend [JSON return]
+           Up from ngrok top (x=820) to y=270, right to x=910, up to Frontend bottom (y=180)
+           Uses RIGHT side of ngrok (x=820) and RIGHT side of Frontend (x=910) 
+           to stay clear of Step 5 path (which uses x=850/750) -->
+      <path class="flow-line" d="M 820 325 L 820 270 L 910 270 L 910 180" stroke="var(--ngrok-color)" stroke-width="1.8" fill="none" marker-end="url(#arr-orange)"/>
+      <rect x="925" y="257" width="55" height="18" rx="9" fill="rgba(249,115,22,0.15)"/>
+      <text x="953" y="269" text-anchor="middle" fill="var(--ngrok-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">JSON</text>
+      <circle cx="928" cy="235" r="11" fill="rgba(249,115,22,0.25)" stroke="var(--ngrok-color)" stroke-width="1"/>
+      <text class="step-circle" x="928" y="239" text-anchor="middle" fill="var(--ngrok-color)">10</text>
+
+      <!-- Step 11: Frontend -> Tavus [Echo Msg] label on vertical segment -->
+      <path class="flow-line" d="M 780 150 L 580 150 L 580 370 L 450 370" stroke="var(--tavus-color)" stroke-width="1.8" fill="none" marker-end="url(#arr-purple)"/>
+      <rect x="588" y="320" width="75" height="18" rx="9" fill="rgba(168,85,247,0.15)"/>
+      <text x="626" y="332" text-anchor="middle" fill="var(--tavus-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600">Echo Msg</text>
+      <circle cx="597" cy="305" r="11" fill="rgba(168,85,247,0.25)" stroke="var(--tavus-color)" stroke-width="1"/>
+      <text class="step-circle" x="597" y="309" text-anchor="middle" fill="var(--tavus-color)">11</text>
+
+      <!-- Return: Tavus -> Patient [Video + Audio] -->
+      <path d="M 100 370 L 50 370 L 50 185" stroke="var(--user-color)" stroke-width="2" fill="none" marker-end="url(#arr-green)" opacity="0.5" stroke-dasharray="3 5"/>
+      <rect x="12" y="265" width="88" height="18" rx="9" fill="rgba(34,197,94,0.08)"/>
+      <text x="56" y="277" text-anchor="middle" fill="var(--user-color)" font-family="JetBrains Mono, monospace" font-size="9" font-weight="500" opacity="0.7">Video+Audio</text>
+
+    </svg>
+  </div>
+
+  <!-- DATA FLOW TABLE -->
+  <div class="info-card-full">
+    <h3><span class="icon" style="background:rgba(168,85,247,0.12);">📊</span> Data Flow Pipeline</h3>
+    <table class="info-table">
+      <thead><tr><th style="width:50px;">Step</th><th style="width:180px;">Connection</th><th style="width:130px;">Protocol</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="step-num">1</span></td><td>Patient → Daily SDK</td><td><span class="tech-badge">Audio</span></td><td>Browser captures voice via microphone, streams audio to Daily SDK</td></tr>
+        <tr><td><span class="step-num">2</span></td><td>Daily SDK → Tavus</td><td><span class="tech-badge">WebRTC</span></td><td>Real-time audio/video stream sent to Tavus cloud for processing</td></tr>
+        <tr><td><span class="step-num">3</span></td><td>Tavus → Daily SDK</td><td><span class="tech-badge">tool_call</span></td><td>Tavus Persona detects patient data intent, emits tool_call event via app-message</td></tr>
+        <tr><td><span class="step-num">4</span></td><td>Daily SDK → Frontend</td><td><span class="tech-badge">Event</span></td><td>assistant.js receives app-message event with tool_call payload</td></tr>
+        <tr><td><span class="step-num">5</span></td><td>Frontend → ngrok</td><td><span class="tech-badge">HTTPS POST</span></td><td>Frontend sends HTTP request to ngrok public URL with patient data payload</td></tr>
+        <tr><td><span class="step-num">6</span></td><td>ngrok → FastAPI</td><td><span class="tech-badge">Tunnel</span></td><td>ngrok tunnels request from public HTTPS to localhost:8000</td></tr>
+        <tr><td><span class="step-num">7</span></td><td>FastAPI → PostgreSQL</td><td><span class="tech-badge">SQL</span></td><td>Backend identifies patient, executes INSERT or UPDATE via psycopg2 pool</td></tr>
+        <tr><td><span class="step-num">8</span></td><td>PostgreSQL → FastAPI</td><td><span class="tech-badge">Data</span></td><td>Database returns query results — patient record or confirmation</td></tr>
+        <tr><td><span class="step-num">9</span></td><td>FastAPI &rarr; ngrok</td><td><span class="tech-badge">JSON</span></td><td>Backend sends structured JSON response back through ngrok tunnel</td></tr>
+        <tr><td><span class="step-num">10</span></td><td>ngrok &rarr; Frontend</td><td><span class="tech-badge">JSON</span></td><td>ngrok forwards the JSON response back up to Frontend (assistant.js)</td></tr>
+        <tr><td><span class="step-num">11</span></td><td>Frontend &rarr; Tavus</td><td><span class="tech-badge">Echo Msg</span></td><td>Frontend sends response text to Tavus; avatar speaks it with lip-synced video</td></tr>
+        <tr><td style="padding-left:6px;">↩️</td><td>Tavus → Patient</td><td><span class="tech-badge">Video+Audio</span></td><td>AI avatar streams lip-synced video and TTS audio back to patient's browser</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3><span class="icon" style="background:rgba(59,130,246,0.12);">🔧</span> Technology Stack</h3>
+      <table class="info-table">
+        <thead><tr><th>Component</th><th>Technology</th></tr></thead>
+        <tbody>
+          <tr><td>Patient Interface</td><td><span class="tech-badge">Browser WebRTC</span></td></tr>
+          <tr><td>Real-time Transport</td><td><span class="tech-badge">Daily SDK (JS)</span></td></tr>
+          <tr><td>AI Avatar</td><td><span class="tech-badge">Tavus Cloud</span></td></tr>
+          <tr><td>Secure Tunnel</td><td><span class="tech-badge">ngrok HTTPS</span></td></tr>
+          <tr><td>Backend API</td><td><span class="tech-badge">FastAPI (Python)</span></td></tr>
+          <tr><td>Database</td><td><span class="tech-badge">PostgreSQL 15</span></td></tr>
+          <tr><td>DB Driver</td><td><span class="tech-badge">psycopg2 Pool</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-card">
+      <h3><span class="icon" style="background:rgba(234,179,8,0.12);">📁</span> Key Files</h3>
+      <table class="info-table">
+        <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><span class="file-name">index.html</span></td><td>Main UI — avatar viewport + controls</td></tr>
+          <tr><td><span class="file-name">assistant.js</span></td><td>Daily SDK init, Tavus, API calls</td></tr>
+          <tr><td><span class="file-name">avatar.py</span></td><td>FastAPI REST endpoints</td></tr>
+          <tr><td><span class="file-name">assistant_service.py</span></td><td>Core orchestrator — patient ID, extraction</td></tr>
+          <tr><td><span class="file-name">postgres_base.py</span></td><td>DB pool, CRUD operations</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">AI Avatar Assistant · Patient Pre-Assessment Pipeline · HIPAA Compliant · Local Processing</div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <div class="dp-header">
+    <div class="dp-title" id="dpTitle">Component</div>
+    <button class="dp-close" id="dpClose">✕</button>
+  </div>
+  <div class="dp-desc" id="dpDesc"></div>
+  <div class="dp-tech" id="dpTech"></div>
+</div>
+
+<script>
+const componentInfo = {
+  user: { title:"👤 Patient (Browser)", desc:"The patient opens the web app in their browser. Their microphone captures voice input which is streamed in real-time via the Daily SDK. They see and hear the AI avatar's lip-synced video response.", tech:"Input: Voice (Microphone) → WebRTC\nOutput: Video + Audio (Avatar)\nProtocol: Browser MediaStream API" },
+  daily: { title:"📡 Daily SDK (WebRTC)", desc:"Establishes a real-time WebRTC connection between the patient's browser and Tavus cloud. Handles bidirectional audio/video streaming and listens for app-message events containing tool_call payloads.", tech:"Library: DailyIframe.createCallObject()\nProtocol: WebRTC (UDP/DTLS)\nEvents: app-message → tool_call" },
+  frontend: { title:"🖥️ Frontend (assistant.js)", desc:"Handles Daily SDK initialization, Tavus conversation setup, and API communication. When a tool_call event arrives, it sends an HTTP POST to the backend via ngrok, and forwards the response back to Tavus as an echo message.", tech:"File: assistant.js\nServed: Live Server (localhost:5500)\nAPI: fetch() → ngrok URL\nHeader: ngrok-skip-browser-warning: true" },
+  tavus: { title:"🤖 Tavus AI Avatar (Cloud)", desc:"Cloud-hosted AI avatar with a built-in Persona LLM. Handles the complete voice pipeline: Speech-to-Text, natural language understanding, and Text-to-Speech with real-time lip-synced video. Triggers tool_call events when patient data is needed.", tech:"Pipeline: STT → Persona LLM → TTS\nOutput: Lip-synced Video Stream\nTrigger: tool_call via app-message\nPersona ID: Custom configured" },
+  ngrok: { title:"🔒 ngrok (HTTPS Tunnel)", desc:"Creates a secure HTTPS tunnel from a public URL to the local FastAPI backend. Required because the browser enforces CORS restrictions. The URL changes on each restart (free tier).", tech:"Tunnel: https://[random].ngrok-free.dev\n  → http://localhost:8000\nPurpose: CORS bypass + public access" },
+  fastapi: { title:"⚡ FastAPI Backend (Python)", desc:"Core backend on localhost:8000. Handles incoming tool_call requests, orchestrates patient identification (new vs. existing), extracts structured medical data, performs CRUD operations, and builds responses for the avatar.", tech:"Framework: FastAPI (uvicorn)\nPort: localhost:8000\nCORS: allow_origins=[\"*\"]\nFiles: avatar.py, assistant_service.py\nPool: psycopg2 ThreadedConnectionPool" },
+  database: { title:"🗄️ PostgreSQL Database", desc:"Local PostgreSQL database storing all patient pre-assessment data. Contains the patients table with structured fields for demographics, medical history, symptoms, and medications. All data remains on-premise for HIPAA compliance.", tech:"Database: patient_preassessment\nTable: patients\nPort: localhost:5432\nDriver: psycopg2 ThreadedConnectionPool\nCompliance: HIPAA (local only)" },
+  hipaa: { title:"🛡️ HIPAA Compliance", desc:"All patient data is processed and stored locally on-premise. No PHI (Protected Health Information) is sent to external cloud services. The Tavus avatar only handles voice interaction — actual patient records never leave the local server.", tech:"Data Location: On-premise only\nPHI Handling: Local PostgreSQL\nCloud Exposure: Voice only (no PHI)\nTunnel: ngrok for API access only" }
+};
+const panel=document.getElementById('detailPanel'), dpTitle=document.getElementById('dpTitle'), dpDesc=document.getElementById('dpDesc'), dpTech=document.getElementById('dpTech'), dpClose=document.getElementById('dpClose');
+document.querySelectorAll('.node-group').forEach(n=>{n.addEventListener('click',e=>{e.stopPropagation();const i=componentInfo[n.dataset.component];if(i){dpTitle.textContent=i.title;dpDesc.textContent=i.desc;dpTech.textContent=i.tech;panel.classList.add('visible');}});});
+dpClose.addEventListener('click',()=>panel.classList.remove('visible'));
+document.addEventListener('click',e=>{if(!e.target.closest('.node-group')&&!e.target.closest('.detail-panel'))panel.classList.remove('visible');});
+</script>
+</body>
+</html>
