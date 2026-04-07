@@ -10,10 +10,9 @@ A conversational AI patient pre-assessment system powered by a lifelike avatar. 
 
 A patient visits the web page, clicks **Start Conversation**, and speaks with an AI nurse avatar powered by [Tavus](https://tavus.io). The avatar:
 
-1. Greets the patient by name if they're a returning visitor
-2. Registers new patients automatically
-3. Records the reason for today's visit
-4. Stores everything securely in a local PostgreSQL database
+1. **Returning patient** — greets them by name and records today's reason for visit (updates their existing record)
+2. **New patient** — collects their details and registers them automatically
+3. Stores everything securely in a local PostgreSQL database
 
 ---
 
